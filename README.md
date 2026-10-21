@@ -1,51 +1,56 @@
-# DEPRECATION NOTICE!
-We are deprecating aind-contraqctor-to-schema-export repository.  Please use the new [python library template](https://github.com/AllenNeuralDynamics/python-templates) that conforms to the latest coding standards.
-
 # aind-contraqctor-to-schema-export
 
 [![License](https://img.shields.io/badge/license-MIT-brightgreen)](LICENSE)
-![Code Style](https://img.shields.io/badge/code%20style-black-black)
+![Code Style](https://img.shields.io/badge/code%20style-ruff-black)
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 ![Interrogate](https://img.shields.io/badge/interrogate-100.0%25-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
-![Python](https://img.shields.io/badge/python->=3.10-blue?logo=python)
+![Python](https://img.shields.io/badge/python->=3.12-blue?logo=python)
+
+Export [contraqctor](https://github.com/AllenNeuralDynamics/contraqctor) QC results to
+[aind-data-schema](https://github.com/AllenNeuralDynamics/aind-data-schema) `QualityControl`
+objects for the AIND QC portal. Shared by the dynamic foraging and VR foraging QC pipelines.
+
+## What it does
+
+`results_to_metrics` turns the grouped results of a contraqctor `Runner` into `QCMetric`s:
+
+- **Names are unique per session:** `"<test>:<group>"`, plus `":<n>"` for a test that yields
+  several results in one group (e.g. `HarpHubTestSuite`'s per-device checks).
+- **Tags match the portal grouping:** every metric carries exactly
+  `{"type": "Harp QC Suite", "group": "<runner group>"}`, so `DEFAULT_GROUPING = ["type", "group"]`
+  builds a two-level tree (type, then device or stream).
+- **Nothing reported is dropped:** a test's figure (attached with
+  `ContextExportableObj.as_context`) is saved and becomes the metric's `reference`; any other
+  `context` it reports (e.g. which registers lost Harp messages) is kept in the metric's `value`
+  as `{"result": ..., "context": ...}`.
+
+`build_quality_control` wraps the metrics (yours plus any you compute yourself) in a
+`QualityControl`:
+
+- **contraqctor failures don't fail the session:** `allow_tag_failures` defaults to
+  `["type:Harp QC Suite"]`, so these metrics show as failed in the portal but the overall QC
+  status ignores them. Metrics with any other `type` still count. contraqctor warnings and
+  errors are mapped to `Fail` too (skips to `Pass`), so they are excused the same way instead of
+  holding the session at `Pending`.
+- **Duplicate names fail loudly:** it raises `ValueError` on duplicate metric names, which the
+  portal would otherwise silently drop.
 
 ## Usage
- - To use this template, click the green `Use this template` button and `Create new repository`.
- - After github initially creates the new repository, please wait an extra minute for the initialization scripts to finish organizing the repo.
- - To enable the automatic semantic version increments: in the repository go to `Settings` and `Collaborators and teams`. Click the green `Add people` button. Add `svc-aindscicomp` as a collaborator with "write" role. Modify the file in `.github/workflows/tag_and_publish.yml` by removing the if statement in line 67. The semantic version will now be incremented every time a code is committed into the main branch.
- - To publish to PyPI, first submit a request to the [Scientific Computing issue tracker](https://github.com/AllenNeuralDynamics/aind-scientific-computing/issues)
- to have the repository added as a Trusted Publisher for PyPI. Please specify the repository name (and desired PyPI package name if different).
- After the repository is added as a Trusted Publisher, enable semantic versioning and remove the if statement in line 73 in `.github/workflows/tag_and_publish.yml`. The code will now be published to PyPI every time the code is committed into the main branch.
- - The `.github/workflows/test_and_lint.yml` file will run automated tests and style checks every time a Pull Request is opened. If the checks are undesired, the `test_and_lint.yml` can be deleted. The strictness of the code coverage level, etc., can be modified by altering the configurations in the `pyproject.toml` file and the `.flake8` file.
- - Please make any necessary updates to the README.md and CITATION.cff files
 
-## Level of Support
-Please indicate a level of support:
- - [ ] Supported: We are releasing this code to the public as a tool we expect others to use. Issues are welcomed, and we expect to address them promptly; pull requests will be vetted by our staff before inclusion.
- - [ ] Occasional updates: We are planning on occasional updating this tool with no fixed schedule. Community involvement is encouraged through both issues and pull requests.
- - [ ] Unsupported: We are not currently supporting this code, but simply releasing it to the community AS IS but are not able to provide any guarantees of support. The community is welcome to submit issues, but you should not expect an active response.
+```python
+from aind_contraqctor_to_schema_export import build_quality_control, results_to_metrics
 
-## Release Status
-GitHub's tags and Release features can be used to indicate a Release status.
+results = runner.run_all()  # a contraqctor qc.Runner
+metrics = results_to_metrics(results, results_folder="/results/qc")
+quality_control = build_quality_control(metrics)
+```
 
- - Stable: v1.0.0 and above. Ready for production.
- - Beta:  v0.x.x or indicated in the tag. Ready for beta testers and early adopters.
- - Alpha: v0.x.x or indicated in the tag. Still in early development.
+`qc_type`, `modality` and `stage` can be passed to `results_to_metrics` to override the
+defaults (`"Harp QC Suite"`, behavior, raw).
 
 ## Installation
-To use the software, in the root directory, run
-```bash
-pip install -e .
-```
 
-To develop the code, run
-```bash
-pip install -e . --group dev
-```
-Note: --group flag is available only in pip versions >=25.1
-
-Alternatively, if using [uv](https://docs.astral.sh/uv/), run
 ```bash
 uv sync
 ```
