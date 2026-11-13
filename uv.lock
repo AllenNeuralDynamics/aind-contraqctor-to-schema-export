@@ -51,7 +51,7 @@ wheels = [
 
 [[package]]
 name = "aind-contraqctor-to-schema-export"
-version = "0.0.0"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aind-data-schema" },
