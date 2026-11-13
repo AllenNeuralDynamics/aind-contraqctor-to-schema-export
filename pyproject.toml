@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aind-contraqctor-to-schema-export"
 description = "Export contraqctor QC results to aind-data-schema quality-control objects"
 license = "MIT"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 authors = [
     {name = "Allen Institute for Neural Dynamics"}
 ]
