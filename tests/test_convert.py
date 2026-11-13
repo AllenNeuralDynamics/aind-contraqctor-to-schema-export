@@ -7,6 +7,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from contraqctor import qc as cqc
+from contraqctor._typing import ErrorOnLoad
 from contraqctor.qc._context_extensions import ContextExportableObj
 
 from aind_contraqctor_to_schema_export import NO_GROUP, QC_TYPE, results_to_metrics, to_builtin
@@ -29,6 +30,25 @@ def test_to_builtin_converts_nested_numpy_and_rounds_floats():
     """Numpy values at any depth become builtins; floats are rounded."""
     value = {"a": np.float32(39.5634727), "b": [np.int64(2), (1.23456, "x")], "c": np.array([1])}
     assert to_builtin(value) == {"a": 39.563, "b": [2, [1.235, "x"]], "c": [1]}
+
+
+def test_to_builtin_converts_error_on_load():
+    """A stream load error becomes its stream name and error, not the raw object."""
+
+    class _Stream:
+        """Stand-in data stream with a resolved name."""
+
+        resolved_name = "fip::SoftwareEvents::Annotations"
+
+    error = ErrorOnLoad(_Stream(), FileNotFoundError("Annotations.json"))
+    assert to_builtin({"errors": [error]}) == {
+        "errors": [
+            {
+                "data_stream": "fip::SoftwareEvents::Annotations",
+                "error": "FileNotFoundError: Annotations.json",
+            }
+        ]
+    }
 
 
 def test_results_to_metrics_smoke(tmp_path):

@@ -22,6 +22,7 @@ import numpy as np
 from aind_data_schema.core.quality_control import QCMetric, QCStatus, Stage, Status
 from aind_data_schema_models.modalities import Modality
 from contraqctor import qc
+from contraqctor._typing import ErrorOnLoad
 from contraqctor.qc._context_extensions import ASSET_RESERVED_KEYWORD, ContextExportableObj
 
 #: Tag key holding the QC portal's top-level group.
@@ -64,20 +65,28 @@ def to_builtin(value: t.Any) -> t.Any:
     ``float32`` sensor readings otherwise writes out its full binary expansion
     (``39.563472747802734``), which is noise rather than precision.
 
+    An ``ErrorOnLoad`` (reported by ``ContractTestSuite`` when a stream fails to
+    load, e.g. a missing optional file) becomes its stream name and error.
+
     Parameters
     ----------
     value : Any
-        A value that may be a numpy scalar or array, or a container holding
-        them at any depth.
+        A value that may be a numpy scalar or array, an ``ErrorOnLoad``, or a
+        container holding them at any depth.
 
     Returns
     -------
     Any
         The equivalent Python builtin (``list`` for arrays and other sequences,
         rounded ``float`` for floating-point values, dicts rebuilt with
-        converted keys and values), or ``value`` unchanged when it is neither a
-        numpy type, a float, nor a container.
+        converted keys and values, ``{"data_stream": ..., "error": ...}`` for an
+        ``ErrorOnLoad``), or ``value`` unchanged otherwise.
     """
+    if isinstance(value, ErrorOnLoad):
+        return {
+            "data_stream": value.data_stream.resolved_name,
+            "error": f"{type(value.exception).__name__}: {value.exception}",
+        }
     if isinstance(value, np.ndarray):
         return to_builtin(value.tolist())
     if isinstance(value, np.generic):
